@@ -32,6 +32,10 @@ void sendConfirmation() {
 }
 
 int main(int argc, char *argv[]) {
+    (void)signal(SIGUSR1, resiveBitHandler);
+    (void)signal(SIGUSR2, resiveBitHandler);
+    (void)signal(SIGINT, resiveBitHandler);
+
     this_pid = getpid();
     printf("PID: %d\n", this_pid);
     printf("Enter PID of sender: ");
@@ -41,12 +45,14 @@ int main(int argc, char *argv[]) {
 
     printf("Waiting for integer from PID %d\n", sender_pid);
 
-    (void)signal(SIGUSR1, resiveBitHandler);
-    (void)signal(SIGUSR2, resiveBitHandler);
-    (void)signal(SIGINT, resiveBitHandler);
+    __int8_t resived_bits[32], is_negative, iteration = 0;
 
-    __int8_t resived_bits[32];
-    int iteration = 0;
+    pause();
+    is_negative = received_bit;
+    // sleep for a little to make sure the sender has time start hadling the signal
+    usleep(100000);
+    sendConfirmation();
+
     while (is_receiving) {
         pause();
         resived_bits[iteration++] = received_bit;
@@ -56,6 +62,10 @@ int main(int argc, char *argv[]) {
     __int32_t resived_integer = 0;
     for (int i = 0; i < iteration - 1; i++) {
         resived_integer |= resived_bits[i] << i;
+    }
+
+    if (is_negative) {
+        resived_integer = -resived_integer;
     }
 
     printf("Received integer %d from PID %d\n", resived_integer, sender_pid);

@@ -19,18 +19,26 @@ void confirmationHandler(int sig) {
 }
 
 int main(int argc, char *argv[]) {
+    (void)signal(SIGUSR1, confirmationHandler);
+
     this_pid = getpid();
     int sending_integer;
     printf("PID: %d\n", this_pid);
     printf("Enter PID of resiever: ");
     scanf("%d", &resiever_pid);
 
-    (void)signal(SIGUSR1, confirmationHandler);
-
     printf("Enter integer to send: ");
     scanf("%d", &sending_integer);
 
     printf("Sending integer %d to PID %d\n", sending_integer, resiever_pid);
+
+    if (sending_integer < 0) {
+        sendBit(1);
+        sending_integer = -sending_integer;
+    } else {
+        sendBit(0);
+    }
+    pause();
 
     while (sending_integer > 0) {
         sendBit(sending_integer & 1);
