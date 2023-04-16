@@ -30,18 +30,17 @@ int main(int argc, char *argv[]) {
     printf("Enter integer to send: ");
     scanf("%d", &sending_integer);
 
-    // Wait for confirmation from resiever
-    pause();
-
     printf("Sending integer %d to PID %d\n", sending_integer, resiever_pid);
 
-    for (int i = 0; i < 32; i++) {
+    while (sending_integer > 0) {
         sendBit(sending_integer & 1);
         sending_integer >>= 1;
 
         // Wait for confirmation
         pause();
     }
+
+    kill(resiever_pid, SIGINT);
 
     printf("Done sending integer.\n");
 
