@@ -1,66 +1,82 @@
 #include <stdio.h>
-#include <stdlib.h>
 #include <unistd.h>
+#include <stdlib.h>
+#include <string.h>
+#include <fcntl.h>
+#include <errno.h>
 
-#define MAX_DEPTH 777 // Максимальная глубина рекурсии
+#define FILE_DIR "./files/"
+#define CONTENT "777\n"
+#define EXIT_ERROR -1
+#define EXIT_SUCCESS  0
 
-int main() {
-    char filename[] = "a";
-    int depth = 0;
-    int opened = 1;
+void exitWithError(char* message){
+    perror(message);
+    exit(EXIT_ERROR);
+}
 
-    // Создание директории для файлов
-    if (mkdir("files", 0777) == -1) {
-        perror("Failed to create directory");
-        return 1;
+void writeDigitToString(int digit, char* to_write){
+    sprintf(to_write, "%d", digit);    
+}
+
+void getFilepath(int digit, char* filepath){
+    char filename[1024];
+    strcpy(filepath, FILE_DIR);
+    writeDigitToString(digit, filename);
+    strcat(filepath, filename);
+}
+
+int main(int arc, char argv[]){
+    int file_depth = 0;
+
+    char previous_filename[1024], current_filename[1024];
+
+    getFilepath(file_depth, previous_filename);
+
+    int fd = open(previous_filename, O_CREAT | O_WRONLY, 0666);
+    if(fd < 0){
+        exitWithError("Error while creating first file.");
     }
 
-    // Переход в директорию файлов
-    if (chdir("files") == -1) {
-        perror("Failed to change directory");
-        return 1;
+    if(write(fd, CONTENT, sizeof(CONTENT)) < 0){
+        close(fd);
+        exitWithError("Error while writing to file.");
     }
 
-    // Создание первоначального файла
-    FILE* file = fopen(filename, "w");
-    if (file == NULL) {
-        perror("Failed to create file");
-        return 1;
-    }
-    fclose(file);
+    close(fd);
 
-    // Открытие файлов до достижения максимальной глубины
-    while (opened && depth < MAX_DEPTH) {
-        char linkname[3] = { 'a' + depth, 'a', '\0' };
+    getFilepath(file_depth, previous_filename);
 
-        // Создание символьной связи
-        if (symlink(filename, linkname) == -1) {
-            perror("Failed to create symlink");
-            break;
+    for(;;){
+        ++file_depth;
+        writeDigitToString(file_depth - 1, previous_filename); 
+        getFilepath(file_depth, current_filename);
+
+        if(symlink(previous_filename, current_filename) < 0){
+            exitWithError("Error while creating the symlink");
         }
 
-        // Попытка открыть файл
-        file = fopen(linkname, "r");
-        if (file != NULL) {
-            fclose(file);
-            depth++;
-        } else {
-            opened = 0; // Файл не удалось открыть
+        printf("Created symlink: %s -> %s\n", current_filename, previous_filename);
+
+        fd = open(current_filename, O_RDONLY);
+        if (fd == -1) {
+            if (errno == ELOOP) {
+                printf("Got an ELOOP.");
+                close(fd);
+                break;
+            }
+            
+            close(fd);
+            exitWithError("Error while opening the file");
         }
+
+        close(fd);
+
+        getFilepath(file_depth, current_filename);
+        strcpy(previous_filename, current_filename);
     }
 
-    printf("Глубина рекурсии: %d\n", depth);
+    printf("Current recurtion limit: %d", file_depth - 1);
 
-    // Удаление всех созданных файлов и символьных связей
-    unlink(filename);
-    for (int i = 0; i < depth; i++) {
-        char linkname[3] = { 'a' + i, 'a', '\0' };
-        unlink(linkname);
-    }
-
-    // Возврат в исходную директорию и удаление директории файлов
-    chdir("..");
-    rmdir("files");
-
-    return 0;
+    return EXIT_SUCCESS;
 }
